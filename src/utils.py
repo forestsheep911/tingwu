@@ -11,30 +11,14 @@ console = Console()
 
 
 def load_env_or_exit(env_name: str) -> str:
-    """加载环境变量，如果不存在则退出程序"""
-    # 确保.env被加载
     root_dir = Path(__file__).parent.parent
     env_path = root_dir / ".env"
-
-    # 加载环境变量文件
-    if not load_dotenv(env_path):
+    if not load_dotenv(env_path, override=True):
         console.print(f"[yellow]警告: 无法加载环境变量文件: {env_path}[/yellow]")
-
-    # 为调试添加一些输出
-    console.print(f"[blue]正在查找环境变量: {env_name}[/blue]")
-
     value = os.getenv(env_name)
+    console.print(f"[blue]加载的环境变量 {env_name}: {value}[/blue]")  # 添加调试输出
     if not value:
         console.print(f"[red]错误: 环境变量 {env_name} 未设置[/red]")
-        console.print("请在.env文件中设置必要的环境变量：")
-        console.print(
-            """
-        ALIBABA_CLOUD_ACCESS_KEY_ID=你的AccessKeyId
-        ALIBABA_CLOUD_ACCESS_KEY_SECRET=你的AccessKeySecret
-        TINGWU_APP_KEY=你的听悟AppKey
-        AUDIO_FILE_URL=你的音频文件URL
-        """
-        )
         exit(1)
     return value
 

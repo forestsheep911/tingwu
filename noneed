@@ -1,4 +1,5 @@
 /output
+/in
 .env
 *.lock
 .venv

@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 from client import TingwuClient
 from utils import load_env_or_exit, print_response
+from result_processing import download_results, format_transcription  # 新增导入
 
 app = typer.Typer()
 console = Console()
@@ -15,24 +16,13 @@ console = Console()
 
 def create_client() -> TingwuClient:
     """创建并返回TingwuClient实例"""
-    # 获取项目根目录
     root_dir = Path(__file__).parent.parent
     env_path = root_dir / ".env"
-
-    # 显式指定.env文件路径
-    if not load_dotenv(env_path):
+    if not load_dotenv(env_path, override=True):
         console.print(f"[yellow]警告: 无法加载环境变量文件: {env_path}[/yellow]")
-
-    # 打印当前工作目录和env文件位置（调试用）
-    console.print(f"[blue]当前工作目录: {Path.cwd()}[/blue]")
-    console.print(f"[blue]env文件路径: {env_path}[/blue]")
-    console.print(f"[blue]env文件是否存在: {env_path.exists()}[/blue]")
-
-    # 获取必要的环境变量
     access_key_id = load_env_or_exit("ALIBABA_CLOUD_ACCESS_KEY_ID")
     access_key_secret = load_env_or_exit("ALIBABA_CLOUD_ACCESS_KEY_SECRET")
     app_key = load_env_or_exit("TINGWU_APP_KEY")
-
     return TingwuClient(
         access_key_id=access_key_id,
         access_key_secret=access_key_secret,
@@ -44,12 +34,18 @@ def create_client() -> TingwuClient:
 def create_task(
     file_url: Optional[str] = typer.Option(
         None, "--url", "-u", help="音视频文件的URL地址"
-    ),  # 改为None表示可选
+    ),
     language: str = typer.Option(
         "cn", "--language", "-l", help="源语言，默认为中文(cn)"
     ),
-    speakers: int = typer.Option(
-        0, "--speakers", "-s", help="说话人数量，0表示自动检测"
+    speakers: Optional[int] = typer.Option(  # 修改为 Optional，且限制值为 0 或 2
+        None,
+        "--speakers",
+        "-s",
+        help="说话人数量，0表示不定人数，2表示2人，不指定则不启用说话人分离",
+        callback=lambda x: (
+            x if x in (None, 0, 2) else typer.BadParameter("只能指定 0 或 2")
+        ),
     ),
     translate: bool = typer.Option(False, "--translate", "-t", help="是否启用翻译功能"),
     target_lang: str = typer.Option(
@@ -60,6 +56,9 @@ def create_task(
     summary: bool = typer.Option(False, "--summary", help="是否启用摘要功能"),
     ppt: bool = typer.Option(False, "--ppt", "-p", help="是否启用PPT提取"),
     polish: bool = typer.Option(False, "--polish", help="是否启用口语书面化"),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", "-d", help="仅打印请求内容，不发送请求"
+    ),
 ) -> None:
     """
     创建听悟离线转写任务
@@ -75,16 +74,19 @@ def create_task(
         console.print("\n[bold]任务配置:[/bold]")
         console.print(f"文件URL: {file_url}")
         console.print(f"源语言: {language}")
-        if speakers > 0:
+        if speakers is not None:  # 只在指定 speakers 时显示
             console.print(f"说话人数: {speakers}")
+        console.print(f"Dry Run模式: {dry_run}")
 
         # 创建任务
         with console.status("[bold green]正在创建转写任务...") as status:
             response = client.create_offline_task(
                 file_url=file_url,
                 source_language=language,
-                enable_diarization=speakers > 0,
-                speaker_count=speakers,
+                enable_diarization=speakers is not None,  # 如果指定了 speakers，则启用
+                speaker_count=(
+                    speakers if speakers is not None else 0
+                ),  # 如果未指定，传 0（但不会生效）
                 enable_translation=translate,
                 target_languages=[target_lang] if translate else None,
                 enable_chapters=chapters,
@@ -92,10 +94,16 @@ def create_task(
                 enable_summarization=summary,
                 enable_ppt=ppt,
                 enable_text_polish=polish,
+                dry_run=dry_run,
             )
 
-        # 打印响应
-        print_response(response)
+        # 如果不是dry-run模式，打印响应
+        if not dry_run:
+            print_response(response)
+        else:
+            console.print(
+                "[yellow]Dry Run模式已启用，仅打印请求内容，未实际发送请求[/yellow]"
+            )
 
     except Exception as e:
         console.print(f"[red]错误: {str(e)}[/red]")
@@ -130,7 +138,7 @@ def wait_task(
     interval: int = typer.Option(30, "--interval", help="查询间隔（秒），默认30秒"),
     output_dir: str = typer.Option("output", "--output", "-o", help="结果保存目录"),
 ) -> None:
-    """等待任务完成并获取结果"""
+    """等待任务完成并获取结果，自动下载和格式化"""
     try:
         client = create_client()
 
@@ -144,6 +152,16 @@ def wait_task(
 
         console.print("[bold green]任务完成！[/bold green]")
         print_response(result)
+
+        # 自动下载结果文件
+        if "Data" in result and "Result" in result["Data"]:
+            console.print("\n[bold green]开始下载结果文件...[/bold green]")
+            download_results(result["Data"]["Result"], output_dir)
+
+        # 自动格式化转写结果
+        if "Transcription" in result:
+            console.print("\n[bold green]开始格式化转写结果...[/bold green]")
+            format_transcription(result, task_id, output_dir)
 
     except Exception as e:
         console.print(f"[red]错误: {str(e)}[/red]")

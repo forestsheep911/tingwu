@@ -19,6 +19,7 @@ class TaskMixin:
         enable_summarization: bool = False,
         enable_ppt: bool = False,
         enable_text_polish: bool = False,
+        dry_run: bool = False,  # 新增 dry-run 参数
     ) -> Dict[str, Any]:
         """创建离线转写任务"""
         body = {
@@ -74,6 +75,18 @@ class TaskMixin:
         request.add_query_param("type", "offline")
         request.set_content(json.dumps(body).encode("utf-8"))
 
+        # 如果是dry-run模式，打印请求内容并返回空字典
+        if dry_run:
+            print("Dry Run模式 - 将要发送的请求内容:")
+            print(
+                f"URL: https://tingwu.cn-beijing.aliyuncs.com/openapi/tingwu/v2/tasks?type=offline"
+            )
+            print(f"Method: {request.get_method()}")
+            print(f"Headers: {dict(request.get_headers())}")
+            print(f"Body: {json.dumps(body, indent=2, ensure_ascii=False)}")
+            return {}
+
+        # 正常发送请求
         response = self.client.do_action_with_exception(request)
         return json.loads(response)
 

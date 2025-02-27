@@ -1,5 +1,4 @@
 # src/result_processing.py
-import json
 import requests
 from pathlib import Path
 from typing import Dict, Any
@@ -8,10 +7,11 @@ from rich.console import Console
 console = Console()
 
 
-def download_results(results: Dict[str, str], output_dir: str) -> None:
-    """下载转写结果文件"""
+def download_results(results: Dict[str, str], output_dir: str) -> Dict[str, str]:
+    """下载转写结果文件，并返回下载文件路径"""
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True)
+    downloaded_files = {}
 
     for key, url in results.items():
         try:
@@ -22,22 +22,31 @@ def download_results(results: Dict[str, str], output_dir: str) -> None:
             with open(file_path, "wb") as file:
                 file.write(response.content)
             console.print(f"[green]已下载 {key}: {file_path}[/green]")
+            downloaded_files[key] = str(file_path)
         except Exception as e:
             console.print(f"[red]下载 {key} 失败: {e}[/red]")
+    return downloaded_files
 
 
 def format_transcription(result: Dict[str, Any], task_id: str, output_dir: str) -> None:
     """格式化转写结果，按时间顺序排列并按发言人分隔"""
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
+    console.print(f"[blue]Output directory: {output_path}[/blue]")
 
+    console.print(f"[blue]正在检查 Transcription 数据...[/blue]")
     if "Transcription" not in result or "Paragraphs" not in result["Transcription"]:
         console.print("[red]错误: 结果中没有 Transcription.Paragraphs 数据[/red]")
+        console.print(f"[blue]Result keys: {list(result.keys())}[/blue]")
+        if "Transcription" in result:
+            console.print(
+                f"[blue]Transcription keys: {list(result['Transcription'].keys())}[/blue]"
+            )
         return
 
     paragraphs = result["Transcription"]["Paragraphs"]
+    console.print(f"[blue]找到 {len(paragraphs)} 个 Paragraphs[/blue]")
 
-    # 提取所有单词并按时间排序
     all_words = []
     for para in paragraphs:
         speaker_id = para["SpeakerId"]
@@ -51,8 +60,8 @@ def format_transcription(result: Dict[str, Any], task_id: str, output_dir: str) 
                 }
             )
     all_words.sort(key=lambda x: x["Start"])
+    console.print(f"[blue]提取到 {len(all_words)} 个单词[/blue]")
 
-    # 按时间顺序处理
     output_lines = []
     current_speaker = None
     current_text = ""
@@ -78,15 +87,17 @@ def format_transcription(result: Dict[str, Any], task_id: str, output_dir: str) 
         output_lines.append(f"发言人{current_speaker} {format_time(current_start)}")
         output_lines.append(current_text.strip())
 
-    # 打印和保存
     console.print("\n[bold green]格式化转写结果:[/bold green]")
     for line in output_lines:
         console.print(line)
 
     output_file = output_path / f"task_{task_id}_formatted.txt"
-    with open(output_file, "w", encoding="utf-8") as f:
-        f.write("\n".join(output_lines))
-    console.print(f"\n[green]格式化结果已保存到: {output_file}[/green]")
+    try:
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write("\n".join(output_lines))
+        console.print(f"\n[green]格式化结果已保存到: {output_file}[/green]")
+    except Exception as e:
+        console.print(f"[red]保存格式化文件失败: {str(e)}[/red]")
 
 
 def format_time(ms: int) -> str:

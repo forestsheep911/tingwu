@@ -10,13 +10,14 @@ class ResultMixin:
     def wait_for_task_completion(
         self,
         task_id: str,
-        initial_wait: int = 30,
+        initial_wait: int = 0,
         interval: int = 30,
         timeout: int = 1800,
         output_dir: Optional[str] = None,
     ) -> Dict[str, Any]:
         """等待任务完成并获取结果"""
-        time.sleep(initial_wait)
+        if initial_wait > 0:
+            time.sleep(initial_wait)
 
         start_time = time.time()
 

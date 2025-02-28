@@ -2,6 +2,7 @@ import time
 import json
 from typing import Dict, Any, Optional
 from pathlib import Path
+from rich.console import Console
 
 
 class ResultMixin:
@@ -20,22 +21,33 @@ class ResultMixin:
             time.sleep(initial_wait)
 
         start_time = time.time()
+        console = Console()
 
         while True:
             if time.time() - start_time > timeout:
                 raise TimeoutError(f"等待任务完成超时（{timeout}秒）")
 
             response = self.get_task_status(task_id)
+            # 打印完整的响应内容
+            console.print("\n[bold blue]查询响应:[/bold blue]")
+            console.print(response)
+            
             status = response.get("Data", {}).get("TaskStatus", "")
+            console.print(f"\n当前状态: {status}")
 
             if status == "COMPLETED":
                 if output_dir:
                     self._save_task_result(response, task_id, output_dir)
                 return response
             elif status == "FAILED":
-                raise Exception(f"任务失败: {response.get('Message', '未知错误')}")
+                error_msg = response.get("Message", "未知错误")
+                error_code = response.get("Code", "未知错误码")
+                raise Exception(f"任务失败: {error_msg} (错误码: {error_code})")
             elif status == "CANCELLED":
                 raise Exception("任务已被取消")
+            elif not status:  # 如果状态为空
+                console.print("[yellow]警告: 响应中没有任务状态信息[/yellow]")
+                console.print(f"完整响应: {response}")
 
             time.sleep(interval)
 

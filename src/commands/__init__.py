@@ -1,7 +1,6 @@
 """命令模块"""
-from .create import create_task
-from .wait import wait_task
 from .process import process
 from .version import version
+from .wait import wait_task
 
-__all__ = ["create_task", "wait_task", "process", "version"] 
+__all__ = ["process", "version", "wait_task"] 

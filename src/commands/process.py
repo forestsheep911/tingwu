@@ -5,8 +5,8 @@ import time
 import typer
 from rich.console import Console
 from src.client import create_client
-from src.utils import load_env_or_exit
-from src.result_processing import download_results, format_transcription
+from src.utils import load_env_or_exit, download_results
+from src.processors import format_transcription
 
 console = Console()
 
@@ -46,6 +46,7 @@ def process(
         # 如果命令行没有指定URL，则从环境变量读取
         if not file_url:
             file_url = load_env_or_exit("AUDIO_FILE_URL")
+            console.print(f"[blue]从环境变量读取的文件URL: {file_url}[/blue]")
         
         # 创建客户端
         client = create_client()

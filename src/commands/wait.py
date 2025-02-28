@@ -3,8 +3,8 @@ import json
 import typer
 from rich.console import Console
 from src.client import create_client
-from src.utils import print_response
-from src.result_processing import download_results, format_transcription
+from src.utils import print_response, download_results
+from src.processors import format_transcription
 
 console = Console()
 
@@ -21,12 +21,27 @@ def wait_task(
         client = create_client()
 
         with console.status("[bold green]等待任务完成...") as status:
-            result = client.wait_for_task_completion(
-                task_id=task_id,
-                timeout=wait_time,
-                interval=interval,
-                output_dir=output_dir,
-            )
+            try:
+                result = client.wait_for_task_completion(
+                    task_id=task_id,
+                    timeout=wait_time,
+                    interval=interval,
+                    output_dir=output_dir,
+                )
+                # 打印原始响应内容，帮助调试
+                console.print("\n[bold blue]原始响应:[/bold blue]")
+                console.print(result)
+            except Exception as e:
+                console.print("\n[bold red]等待过程中发生错误:[/bold red]")
+                console.print(f"错误类型: {type(e).__name__}")
+                console.print(f"错误信息: {str(e)}")
+                if hasattr(e, 'response'):
+                    console.print("\n[bold blue]API响应内容:[/bold blue]")
+                    try:
+                        console.print(e.response.json())
+                    except:
+                        console.print(e.response.text)
+                raise
 
         console.print("[bold green]任务完成！[/bold green]")
         print_response(result)

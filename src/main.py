@@ -9,16 +9,15 @@ if root_dir not in sys.path:
 
 import typer
 from rich.console import Console
-from src.commands import create_task, wait_task, process, version
+from src.commands import process, version, wait_task
 
 app = typer.Typer()
 console = Console()
 
 # 注册命令
-app.command()(create_task)
-app.command()(wait_task)
 app.command()(process)
 app.command()(version)
+app.command()(wait_task)
 
 def main():
     """主函数"""

@@ -3,6 +3,7 @@ import json
 from typing import Dict, Any, Optional
 from pathlib import Path
 from rich.console import Console
+from src.utils.output import print_response
 
 
 class ResultMixin:

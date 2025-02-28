@@ -5,8 +5,9 @@ import time
 import typer
 from rich.console import Console
 from src.client import create_client
-from src.utils import load_env_or_exit, download_results
-from src.processors import format_transcription
+from src.utils.env import load_env_or_exit
+from src.utils.download import download_results
+from src.processors.transcription import format_transcription
 
 console = Console()
 

@@ -1,0 +1,45 @@
+edition: 3.0.0
+name: tingwu3.5.1  # 新服务名
+access: default
+resources:
+  tingwuApi:
+    component: fc3
+    props:
+      region: cn-shanghai
+      description: '听悟音视频转写服务API v3.5.1'
+      timeout: 600
+      diskSize: 512
+      internetAccess: true
+      functionName: tingwu-3-5-1  # 新函数名，避免冲突
+      runtime: custom-container
+      cpu: 0.25
+      instanceConcurrency: 20
+      memorySize: 512
+      environmentVariables:
+      code: ./
+      customContainerConfig:
+        image: registry.cn-shanghai.aliyuncs.com/kintone/tingwuimage:latest
+        command: null
+        args: null
+      triggers:
+        - triggerConfig:
+            methods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            authType: anonymous
+            disableURLInternet: false
+          triggerName: defaultTrigger
+          description: 'HTTP API触发器'
+          qualifier: LATEST
+          triggerType: http
+actions:
+  pre-deploy:
+    - run: docker build -t tingwuimage:latest .
+      path: ./
+    - run: docker tag tingwuimage:latest registry.cn-shanghai.aliyuncs.com/kintone/tingwuimage:latest
+      path: ./
+    - run: docker push registry.cn-shanghai.aliyuncs.com/kintone/tingwuimage:latest
+      path: ./

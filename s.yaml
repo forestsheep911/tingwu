@@ -1,5 +1,5 @@
 edition: 3.0.0
-name: tingwu3.5.1  # 新服务名
+name: tingwu3.5.1
 access: default
 resources:
   tingwuApi:
@@ -10,7 +10,7 @@ resources:
       timeout: 600
       diskSize: 512
       internetAccess: true
-      functionName: tingwu-3-5-1  # 新函数名，避免冲突
+      functionName: tingwu-3-5-1
       runtime: custom-container
       cpu: 0.25
       instanceConcurrency: 20
